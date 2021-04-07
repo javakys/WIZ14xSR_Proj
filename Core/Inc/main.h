@@ -54,7 +54,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void Reset_W5300(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

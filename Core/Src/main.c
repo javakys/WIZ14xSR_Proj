@@ -49,6 +49,8 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
+SRAM_HandleTypeDef hsram3;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -62,6 +64,7 @@ static void MX_UART4_Init(void);
 static void MX_UART5_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_FSMC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -116,12 +119,14 @@ int main(void)
   MX_UART5_Init();
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
+  MX_FSMC_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  Reset_W5300();
   while (1)
   {
     /* USER CODE END WHILE */
@@ -145,6 +150,7 @@ int main(void)
 		  memset(msg, 0, 100);
 		  sprintf((char *)msg, "UART5, count: %d\r\n", count);
 		  HAL_UART_Transmit(&huart5, msg, strlen((const char*)msg), 10);
+
 	  }
 //	  HAL_Delay(1000);	// 1000 ms delay
   }
@@ -413,7 +419,9 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOF, GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
@@ -480,6 +488,63 @@ static void MX_GPIO_Init(void)
 
 }
 
+/* FSMC initialization function */
+static void MX_FSMC_Init(void)
+{
+
+  /* USER CODE BEGIN FSMC_Init 0 */
+
+  /* USER CODE END FSMC_Init 0 */
+
+  FSMC_NORSRAM_TimingTypeDef Timing = {0};
+
+  /* USER CODE BEGIN FSMC_Init 1 */
+
+  /* USER CODE END FSMC_Init 1 */
+
+  /** Perform the SRAM3 memory initialization sequence
+  */
+  hsram3.Instance = FSMC_NORSRAM_DEVICE;
+  hsram3.Extended = FSMC_NORSRAM_EXTENDED_DEVICE;
+  /* hsram3.Init */
+  hsram3.Init.NSBank = FSMC_NORSRAM_BANK3;
+  hsram3.Init.DataAddressMux = FSMC_DATA_ADDRESS_MUX_DISABLE;
+  hsram3.Init.MemoryType = FSMC_MEMORY_TYPE_SRAM;
+  hsram3.Init.MemoryDataWidth = FSMC_NORSRAM_MEM_BUS_WIDTH_16;
+  hsram3.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;
+  hsram3.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
+  hsram3.Init.WrapMode = FSMC_WRAP_MODE_DISABLE;
+  hsram3.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
+  hsram3.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
+  hsram3.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
+  hsram3.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
+  hsram3.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
+  hsram3.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;
+  /* Timing */
+  Timing.AddressSetupTime = 0;
+  Timing.AddressHoldTime = 15;
+  Timing.DataSetupTime = 3;
+  Timing.BusTurnAroundDuration = 0;
+  Timing.CLKDivision = 16;
+  Timing.DataLatency = 17;
+  Timing.AccessMode = FSMC_ACCESS_MODE_A;
+  /* ExtTiming */
+
+  if (HAL_SRAM_Init(&hsram3, &Timing, NULL) != HAL_OK)
+  {
+    Error_Handler( );
+  }
+
+  /** Disconnect NADV
+  */
+
+  __HAL_AFIO_FSMCNADV_DISCONNECTED();
+
+  /* USER CODE BEGIN FSMC_Init 2 */
+
+  /* USER CODE END FSMC_Init 2 */
+}
+
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -494,6 +559,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 		/* Toggle LEDs */
 	}
+}
+
+void Reset_W5300()
+{
+	HAL_GPIO_WritePin(RESET_W5300_GPIO_Port, RESET_W5300_Pin, GPIO_PIN_RESET);
+	HAL_Delay(10);
+	HAL_GPIO_WritePin(RESET_W5300_GPIO_Port, RESET_W5300_Pin, GPIO_PIN_SET);
+	HAL_Delay(100);
 }
 /* USER CODE END 4 */
 
