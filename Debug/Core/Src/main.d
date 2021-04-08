@@ -25,7 +25,10 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h \
- ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
+ ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h \
+ /home/javakys/STM32CubeIDE/workspace_1.4.0/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/wizchip_conf.h \
+ /home/javakys/STM32CubeIDE/workspace_1.4.0/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/W5300/w5300.h \
+ ../Core/Inc/W5300BasicFunctions.h
 
 ../Core/Inc/main.h:
 
@@ -82,3 +85,9 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h:
 
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h:
+
+/home/javakys/STM32CubeIDE/workspace_1.4.0/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/wizchip_conf.h:
+
+/home/javakys/STM32CubeIDE/workspace_1.4.0/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/W5300/w5300.h:
+
+../Core/Inc/W5300BasicFunctions.h:

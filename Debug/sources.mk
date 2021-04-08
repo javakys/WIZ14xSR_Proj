@@ -22,4 +22,22 @@ SUBDIRS := \
 Core/Src \
 Core/Startup \
 Drivers/STM32F1xx_HAL_Driver/Src \
+ioLibrary_Driver/Application/loopback \
+ioLibrary_Driver/Application/multicast \
+ioLibrary_Driver/Ethernet/W5100 \
+ioLibrary_Driver/Ethernet/W5100S \
+ioLibrary_Driver/Ethernet/W5200 \
+ioLibrary_Driver/Ethernet/W5300 \
+ioLibrary_Driver/Ethernet/W5500 \
+ioLibrary_Driver/Ethernet \
+ioLibrary_Driver/Internet/DHCP \
+ioLibrary_Driver/Internet/DNS \
+ioLibrary_Driver/Internet/FTPClient \
+ioLibrary_Driver/Internet/FTPServer \
+ioLibrary_Driver/Internet/MQTT \
+ioLibrary_Driver/Internet/MQTT/MQTTPacket/src \
+ioLibrary_Driver/Internet/SNMP \
+ioLibrary_Driver/Internet/SNTP \
+ioLibrary_Driver/Internet/TFTP \
+ioLibrary_Driver/Internet/httpServer \
 

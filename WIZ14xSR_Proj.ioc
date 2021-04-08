@@ -2,8 +2,7 @@
 FSMC.AddressSetupTime3=0
 FSMC.BusTurnAroundDuration3=0
 FSMC.DataSetupTime3=3
-FSMC.IPParameters=WriteOperation3,AddressSetupTime3,DataSetupTime3,BusTurnAroundDuration3
-FSMC.WriteOperation3=FSMC_WRITE_OPERATION_ENABLE
+FSMC.IPParameters=AddressSetupTime3,DataSetupTime3,BusTurnAroundDuration3
 File.Version=6
 GPIO.groupedBy=Group By Peripherals
 KeepUserPlacement=false

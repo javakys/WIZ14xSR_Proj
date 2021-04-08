@@ -24,6 +24,9 @@
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
 #include "string.h"
+
+#include "wizchip_conf.h"
+#include "W5300BasicFunctions.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,7 +55,14 @@ UART_HandleTypeDef huart3;
 SRAM_HandleTypeDef hsram3;
 
 /* USER CODE BEGIN PV */
-
+wiz_NetInfo gWIZNETINFO = {
+		.mac = {0x00, 0x08, 0xdc, 0xff, 0xff, 0xff},
+		.ip = {192, 168, 0, 60},
+		.sn = {255, 255, 255, 0},
+		.gw = {192, 168, 0, 1},
+		.dns = {168, 126, 63, 1},
+		.dhcp = NETINFO_DHCP
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -83,6 +93,7 @@ uint8_t count = 0;
 uint16_t ms_count = 0;
 uint8_t onesecondElapsed = 0;
 uint8_t msg[100];
+uint16_t retval;
 /* USER CODE END 0 */
 
 /**
@@ -126,7 +137,26 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+
   Reset_W5300();
+
+  reg_wizchip_bus_cbfunc(W5300_read, W5300_write);
+
+  printf("GetMR()=%04X\r\n", getMR());
+//  printf("GetIDR()=%04X\r\n", getIDR());
+//  printf("GetIMR()=%04X\r\n", getIMR());
+//  printf("GetRCR()\%04X\r\n", getRCR());
+//  printf("GetRTR()\%04X\r\n", getRTR());
+//  printf("GetTMS01R()\%04X\r\n", getTMS01R());
+//  printf("GetTMS23R()\%04X\r\n", getTMS23R());
+//  printf("GetTMS45R()\%04X\r\n", getTMS45R());
+//  printf("GetTMS67R()\%04X\r\n", getTMS67R());
+//  printf("GetRMS01R()\%04X\r\n", getRMS01R());
+//  printf("GetRMS23R()\%04X\r\n", getRMS23R());
+//  printf("GetRMS45R()\%04X\r\n", getRMS45R());
+//  printf("GetRMS67R()\%04X\r\n", getRMS67R());
+
   while (1)
   {
     /* USER CODE END WHILE */
@@ -150,6 +180,7 @@ int main(void)
 		  memset(msg, 0, 100);
 		  sprintf((char *)msg, "UART5, count: %d\r\n", count);
 		  HAL_UART_Transmit(&huart5, msg, strlen((const char*)msg), 10);
+//		  printf("value: %d\r\n", value);
 
 	  }
 //	  HAL_Delay(1000);	// 1000 ms delay
@@ -515,18 +546,18 @@ static void MX_FSMC_Init(void)
   hsram3.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
   hsram3.Init.WrapMode = FSMC_WRAP_MODE_DISABLE;
   hsram3.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
-  hsram3.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
+  hsram3.Init.WriteOperation = FSMC_WRITE_OPERATION_DISABLE;
   hsram3.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
   hsram3.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
   hsram3.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
   hsram3.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;
   /* Timing */
   Timing.AddressSetupTime = 0;
-  Timing.AddressHoldTime = 15;
-  Timing.DataSetupTime = 3;
+  Timing.AddressHoldTime = 0;
+  Timing.DataSetupTime = 5;
   Timing.BusTurnAroundDuration = 0;
-  Timing.CLKDivision = 16;
-  Timing.DataLatency = 17;
+  Timing.CLKDivision = 0;
+  Timing.DataLatency = 0;
   Timing.AccessMode = FSMC_ACCESS_MODE_A;
   /* ExtTiming */
 
@@ -561,13 +592,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-void Reset_W5300()
-{
-	HAL_GPIO_WritePin(RESET_W5300_GPIO_Port, RESET_W5300_Pin, GPIO_PIN_RESET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(RESET_W5300_GPIO_Port, RESET_W5300_Pin, GPIO_PIN_SET);
-	HAL_Delay(100);
-}
+
 /* USER CODE END 4 */
 
 /**
