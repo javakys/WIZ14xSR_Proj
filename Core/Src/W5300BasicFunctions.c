@@ -26,3 +26,11 @@ iodata_t W5300_read(uint32_t addr)
 	return *((uint16_t*)(addr << 1));
 }
 
+void W5300Initialize(unsigned char * mem_size)
+{
+	if (ctlwizchip(CW_INIT_WIZCHIP, (void*)mem_size) == -1)
+	{
+		printf("W5300 memory initialization failed\r\n");
+	}
+}
+

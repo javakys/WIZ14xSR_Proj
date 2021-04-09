@@ -94,6 +94,14 @@ uint16_t ms_count = 0;
 uint8_t onesecondElapsed = 0;
 uint8_t msg[100];
 uint16_t retval;
+
+uint8_t W5300_memsize[2][8] = {{8,8,8,8,8,8,8,8}, {8,8,8,8,8,8,8,8}};
+//uint8_t W5300_memsize[2][8] = {{4,4,4,4,4,4,4,4}, {4,4,4,4,4,4,4,4}};
+
+#define ETH_MAX_BUF_SIZE		2048
+
+uint8_t ethBuf0[ETH_MAX_BUF_SIZE];
+
 /* USER CODE END 0 */
 
 /**
@@ -103,6 +111,7 @@ uint16_t retval;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  uint8_t tmpaddr[6];
 
   /* USER CODE END 1 */
 
@@ -144,18 +153,34 @@ int main(void)
   reg_wizchip_bus_cbfunc(W5300_read, W5300_write);
 
   printf("GetMR()=%04X\r\n", getMR());
-//  printf("GetIDR()=%04X\r\n", getIDR());
-//  printf("GetIMR()=%04X\r\n", getIMR());
-//  printf("GetRCR()\%04X\r\n", getRCR());
-//  printf("GetRTR()\%04X\r\n", getRTR());
-//  printf("GetTMS01R()\%04X\r\n", getTMS01R());
-//  printf("GetTMS23R()\%04X\r\n", getTMS23R());
-//  printf("GetTMS45R()\%04X\r\n", getTMS45R());
-//  printf("GetTMS67R()\%04X\r\n", getTMS67R());
-//  printf("GetRMS01R()\%04X\r\n", getRMS01R());
-//  printf("GetRMS23R()\%04X\r\n", getRMS23R());
-//  printf("GetRMS45R()\%04X\r\n", getRMS45R());
-//  printf("GetRMS67R()\%04X\r\n", getRMS67R());
+
+//  getSHAR(tmpaddr);
+//  printf("SHAR=%02X:%02X:%02X:%02X:%02X:%02X\r\n", tmpaddr[0], tmpaddr[1], tmpaddr[2], tmpaddr[3], tmpaddr[4], tmpaddr[5]);
+//  getSIPR(tmpaddr);
+//  printf("SIPR=%d.%d.%d.%d\r\n", tmpaddr[0], tmpaddr[1], tmpaddr[2], tmpaddr[3]);
+//  getGAR(tmpaddr);
+//  printf("SIPR=%d.%d.%d.%d\r\n", tmpaddr[0], tmpaddr[1], tmpaddr[2], tmpaddr[3]);
+//  getSUBR(tmpaddr);
+//  printf("SUBR=%d.%d.%d.%d\r\n", tmpaddr[0], tmpaddr[1], tmpaddr[2], tmpaddr[3]);
+//
+//  setSHAR(gWIZNETINFO.mac);
+//  setSIPR(gWIZNETINFO.ip);
+//  setGAR(gWIZNETINFO.gw);
+//  setSUBR(gWIZNETINFO.sn);
+
+  W5300Initialize(W5300_memsize);
+  printf("GetTMS01R()\%04X\r\n", getTMS01R());
+  printf("GetTMS23R()\%04X\r\n", getTMS23R());
+  printf("GetTMS45R()\%04X\r\n", getTMS45R());
+  printf("GetTMS67R()\%04X\r\n", getTMS67R());
+  printf("GetRMS01R()\%04X\r\n", getRMS01R());
+  printf("GetRMS23R()\%04X\r\n", getRMS23R());
+  printf("GetRMS45R()\%04X\r\n", getRMS45R());
+  printf("GetRMS67R()\%04X\r\n", getRMS67R());
+
+  ctlnetwork(CN_SET_NETINFO, (void *)&gWIZNETINFO);
+  print_network_information();
+
 
   while (1)
   {
@@ -166,7 +191,7 @@ int main(void)
 	  {
 		  onesecondElapsed = 0;
 		  count++;	// increment count
-		  printf("count: %d\r\n", count);	// print count
+//		  printf("count: %d\r\n", count);	// print count
 		  HAL_GPIO_TogglePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin);
 		  memset(msg, 0, 100);
 		  sprintf((char *)msg, "UART1, count: %d\r\n", count);
@@ -183,6 +208,7 @@ int main(void)
 //		  printf("value: %d\r\n", value);
 
 	  }
+	  loopback_tcps(0, ethBuf0, 5000);
 //	  HAL_Delay(1000);	// 1000 ms delay
   }
   /* USER CODE END 3 */
@@ -546,7 +572,7 @@ static void MX_FSMC_Init(void)
   hsram3.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
   hsram3.Init.WrapMode = FSMC_WRAP_MODE_DISABLE;
   hsram3.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
-  hsram3.Init.WriteOperation = FSMC_WRITE_OPERATION_DISABLE;
+  hsram3.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
   hsram3.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
   hsram3.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
   hsram3.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
@@ -592,6 +618,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
+void print_network_information(void)
+{
+
+    wizchip_getnetinfo(&gWIZNETINFO);
+    printf("Mac address: %02x:%02x:%02x:%02x:%02x:%02x\n\r",gWIZNETINFO.mac[0],gWIZNETINFO.mac[1],gWIZNETINFO.mac[2],gWIZNETINFO.mac[3],gWIZNETINFO.mac[4],gWIZNETINFO.mac[5]);
+    printf("IP address : %d.%d.%d.%d\n\r",gWIZNETINFO.ip[0],gWIZNETINFO.ip[1],gWIZNETINFO.ip[2],gWIZNETINFO.ip[3]);
+    printf("SM Mask    : %d.%d.%d.%d\n\r",gWIZNETINFO.sn[0],gWIZNETINFO.sn[1],gWIZNETINFO.sn[2],gWIZNETINFO.sn[3]);
+    printf("Gate way   : %d.%d.%d.%d\n\r",gWIZNETINFO.gw[0],gWIZNETINFO.gw[1],gWIZNETINFO.gw[2],gWIZNETINFO.gw[3]);
+    printf("DNS Server : %d.%d.%d.%d\n\r",gWIZNETINFO.dns[0],gWIZNETINFO.dns[1],gWIZNETINFO.dns[2],gWIZNETINFO.dns[3]);
+}
 
 /* USER CODE END 4 */
 

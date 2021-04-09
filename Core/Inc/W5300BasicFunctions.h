@@ -14,5 +14,6 @@ void Reset_W5300(void);
 void W5300_write(uint32_t addr, iodata_t wd);
 iodata_t W5300_read(uint32_t addr);
 
+void W5300Initialize(unsigned char * mem_size);
 
 #endif /* INC_W5300BASICFUNCTIONS_H_ */

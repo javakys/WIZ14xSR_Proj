@@ -1,3 +1,4 @@
 W5300BasicFunctions.c:11:6:Reset_W5300	8	static
 W5300BasicFunctions.c:19:6:W5300_write	16	static
 W5300BasicFunctions.c:24:10:W5300_read	16	static
+W5300BasicFunctions.c:29:6:W5300Initialize	16	static

@@ -55,6 +55,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 void Reset_W5300(void);
+void print_network_information(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
