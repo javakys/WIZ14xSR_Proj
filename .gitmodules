@@ -1,4 +1,0 @@
-[submodule "ioLibrary_Driver"]
-	path = ioLibrary_Driver
-	url = https://github.com/Wiznet/ioLibrary_Driver
-	branch = master
