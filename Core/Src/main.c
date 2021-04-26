@@ -51,6 +51,7 @@ UART_HandleTypeDef huart5;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_uart4_tx;
 
 SRAM_HandleTypeDef hsram3;
 
@@ -68,6 +69,7 @@ wiz_NetInfo gWIZNETINFO = {
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_UART4_Init(void);
@@ -92,7 +94,9 @@ int _write(int file, char *ptr, int len)
 uint8_t count = 0;
 uint16_t ms_count = 0;
 uint8_t onesecondElapsed = 0;
-uint8_t msg[100];
+uint8_t msg[200];
+uint8_t dma_buf[200];
+uint8_t message[] = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890";
 uint16_t retval;
 
 uint8_t W5300_memsize[2][8] = {{8,8,8,8,8,8,8,8}, {8,8,8,8,8,8,8,8}};
@@ -101,6 +105,8 @@ uint8_t W5300_memsize[2][8] = {{8,8,8,8,8,8,8,8}, {8,8,8,8,8,8,8,8}};
 #define ETH_MAX_BUF_SIZE		2048
 
 uint8_t ethBuf0[ETH_MAX_BUF_SIZE];
+
+#define BAUDRATE		2000000
 
 /* USER CODE END 0 */
 
@@ -133,6 +139,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   MX_UART4_Init();
@@ -193,18 +200,22 @@ int main(void)
 		  count++;	// increment count
 //		  printf("count: %d\r\n", count);	// print count
 		  HAL_GPIO_TogglePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin);
-		  memset(msg, 0, 100);
-		  sprintf((char *)msg, "UART1, count: %d\r\n", count);
-		  HAL_UART_Transmit(&huart1, msg, strlen((const char*)msg), 10);
-		  memset(msg, 0, 100);
-		  sprintf((char *)msg, "UART3, count: %d\r\n", count);
-		  HAL_UART_Transmit(&huart3, msg, strlen((const char*)msg), 10);
-		  memset(msg, 0, 100);
-		  sprintf((char *)msg, "UART4, count: %d\r\n", count);
-		  HAL_UART_Transmit(&huart4, msg, strlen((const char*)msg), 10);
-		  memset(msg, 0, 100);
-		  sprintf((char *)msg, "UART5, count: %d\r\n", count);
-		  HAL_UART_Transmit(&huart5, msg, strlen((const char*)msg), 10);
+		  memset(msg, 0, 200);
+		  sprintf((char *)msg, "UART1,[%d],%s\r\n", count, message);
+		  HAL_UART_Transmit(&huart1, msg, strlen((const char*)msg), 20);
+//		  memset(msg, 0, 200);
+//		  sprintf((char *)msg, "UART3,[%d],%s\r\n", count, message);
+//		  HAL_UART_Transmit(&huart3, msg, strlen((const char*)msg), 10);
+//		  memset(msg, 0, 200);
+//		  sprintf((char *)msg, "UART4,[%d],%s\r\n", count, message);
+//		  HAL_UART_Transmit(&huart4, msg, strlen((const char*)msg), 10);
+		  memset(dma_buf, 0, 200);
+		  sprintf((char *)dma_buf, "UART4 DMA,[%d],%s\r\n", count, message);
+		  HAL_UART_Transmit_DMA(&huart4, dma_buf, strlen((const char*)dma_buf));
+
+//		  memset(msg, 0, 200);
+//		  sprintf((char *)msg, "UART5,[%d],%s\r\n", count, message);
+//		  HAL_UART_Transmit(&huart5, msg, strlen((const char*)msg), 10);
 //		  printf("value: %d\r\n", value);
 
 	  }
@@ -313,7 +324,7 @@ static void MX_UART4_Init(void)
 
   /* USER CODE END UART4_Init 1 */
   huart4.Instance = UART4;
-  huart4.Init.BaudRate = 115200;
+  huart4.Init.BaudRate = BAUDRATE;
   huart4.Init.WordLength = UART_WORDLENGTH_8B;
   huart4.Init.StopBits = UART_STOPBITS_1;
   huart4.Init.Parity = UART_PARITY_NONE;
@@ -463,6 +474,22 @@ static void MX_USART3_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Channel4_5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Channel4_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Channel4_5_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -579,11 +606,11 @@ static void MX_FSMC_Init(void)
   hsram3.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;
   /* Timing */
   Timing.AddressSetupTime = 0;
-  Timing.AddressHoldTime = 0;
-  Timing.DataSetupTime = 5;
+  Timing.AddressHoldTime = 15;
+  Timing.DataSetupTime = 3;
   Timing.BusTurnAroundDuration = 0;
-  Timing.CLKDivision = 0;
-  Timing.DataLatency = 0;
+  Timing.CLKDivision = 16;
+  Timing.DataLatency = 17;
   Timing.AccessMode = FSMC_ACCESS_MODE_A;
   /* ExtTiming */
 
