@@ -17,7 +17,7 @@ stm32f1xx_it.c:300:6:TIM2_IRQHandler	8	static
 stm32f1xx_it.c:314:6:USART1_IRQHandler	8	static
 stm32f1xx_it.c:328:6:USART2_IRQHandler	8	static
 stm32f1xx_it.c:342:6:USART3_IRQHandler	16	static
-stm32f1xx_it.c:360:6:UART4_IRQHandler	8	static
-stm32f1xx_it.c:374:6:UART5_IRQHandler	8	static
-stm32f1xx_it.c:388:6:DMA2_Channel3_IRQHandler	8	static
-stm32f1xx_it.c:402:6:DMA2_Channel4_5_IRQHandler	8	static
+stm32f1xx_it.c:360:6:UART4_IRQHandler	16	static
+stm32f1xx_it.c:378:6:UART5_IRQHandler	8	static
+stm32f1xx_it.c:392:6:DMA2_Channel3_IRQHandler	8	static
+stm32f1xx_it.c:406:6:DMA2_Channel4_5_IRQHandler	8	static

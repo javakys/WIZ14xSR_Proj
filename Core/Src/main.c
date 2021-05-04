@@ -27,6 +27,8 @@
 
 #include "wizchip_conf.h"
 #include "W5300BasicFunctions.h"
+
+#include "socket.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -71,6 +73,11 @@ wiz_NetInfo gWIZNETINFO = {
 		.dns = {168, 126, 63, 1},
 		.dhcp = NETINFO_DHCP
 };
+
+uint8_t debugBuf[1024];
+uint16_t debugPtr = 0;
+uint8_t uart5TxBuf[1024];
+uint16_t uart5TxLen = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -94,7 +101,11 @@ int _write(int file, char *ptr, int len)
 {
 //	for(i=0; i<len; i++)
 //		ITM_SendChar((*ptr++));
-	HAL_UART_Transmit(&huart5, (uint8_t *)ptr, len, 10);
+//	HAL_UART_Transmit(&huart5, (uint8_t *)ptr, len, 10);
+//	HAL_UART_Transmit_IT(&huart5, (uint8_t *)ptr, len);
+	memcpy(debugBuf + debugPtr, ptr, len);
+	debugPtr += len;
+
 	return len;
 }
 
@@ -111,30 +122,53 @@ uint16_t retval;
 uint8_t message[MAX_RX_BUF];
 uint8_t dma_buf[MAX_RX_BUF + 16];
 
-uint8_t RxBuffer[MAX_RX_BUF + 16];
-uint16_t wrPtr = 0;
-uint16_t rdPtr = 0;
-uint16_t rcvdLen = 0;
-uint8_t rcvFlag = 0;
+uint8_t RxBuffer3[MAX_RX_BUF + 16];
+uint16_t wrPtr3 = 0;
+uint16_t rdPtr3 = 0;
+uint16_t rcvdLen3 = 0;
+uint8_t rcvFlag3 = 0;
 uint8_t RxBuf3[MAX_RX_BUF + 16];
 
-uint32_t totalSentBytes = 0;
-uint32_t totalRcvdBytes = 0;
+uint8_t RxBuffer4[MAX_RX_BUF + 16];
+uint16_t wrPtr4 = 0;
+uint16_t rdPtr4 = 0;
+uint16_t rcvdLen4 = 0;
+uint8_t rcvFlag4 = 0;
+uint8_t RxBuf4[MAX_RX_BUF + 16];
+
+uint32_t totalSentBytes3 = 0;
+uint32_t totalRcvdBytes3 = 0;
+
+uint32_t totalSentBytes4 = 0;
+uint32_t totalRcvdBytes4 = 0;
 
 uint16_t sentbytes = 0;
 
-uint16_t _HT_Count = 0;
-uint16_t _TC_Count = 0;
-uint16_t _IDLE_Count = 0;
+uint16_t _HT_Count3 = 0;
+uint16_t _TC_Count3 = 0;
+uint16_t _IDLE_Count3 = 0;
+
+uint16_t _HT_Count4 = 0;
+uint16_t _TC_Count4 = 0;
+uint16_t _IDLE_Count4 = 0;
 
 uint8_t W5300_memsize[2][8] = {{8,8,8,8,8,8,8,8}, {8,8,8,8,8,8,8,8}};
 //uint8_t W5300_memsize[2][8] = {{4,4,4,4,4,4,4,4}, {4,4,4,4,4,4,4,4}};
 
-#define ETH_MAX_BUF_SIZE		2048
+#define DATA_BUF_SIZE		1024
 
-uint8_t ethBuf0[ETH_MAX_BUF_SIZE];
+uint8_t ethBuf3[DATA_BUF_SIZE];
+uint8_t ethBuf4[DATA_BUF_SIZE];
+
+uint16_t ethDataLen3 = 0;
+uint16_t ethDataLen4 = 0;
+
 #define BAUDRATE		2000000
 
+uint8_t uart3TxEnable = 1;
+uint8_t uart4TxEnable = 1;
+
+#define _LOOPBACK_DEBUG_
 /* USER CODE END 0 */
 
 /**
@@ -219,8 +253,10 @@ int main(void)
 //  HAL_UART_Receive_DMA(&huart1, &rxByte1, 1);
 //  HAL_UART_Receive_DMA(&huart2, &rxByte2, 1);
   __HAL_UART_ENABLE_IT(&huart3, UART_IT_IDLE);
-  HAL_UART_Receive_DMA(&huart3, RxBuffer, MAX_RX_BUF + 16);
-//  HAL_UART_Receive_DMA(&huart4, &rxByte4, 1);
+  HAL_UART_Receive_DMA(&huart3, RxBuffer3, MAX_RX_BUF + 16);
+
+  __HAL_UART_ENABLE_IT(&huart4, UART_IT_IDLE);
+  HAL_UART_Receive_DMA(&huart4, RxBuffer4, MAX_RX_BUF + 16);
 
   memset(message, 0, MAX_RX_BUF);
   for(uint16_t i; i<MAX_RX_BUF - 1; i++)
@@ -239,24 +275,65 @@ int main(void)
 		  onesecondElapsed = 0;
 		  count++;	// increment count
 		  HAL_GPIO_TogglePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin);
+//		  printf("RxBuf3: [%d] bytes, %s\r\n", strlen(RxBuf3), RxBuf3);
 		  memset(dma_buf, 0, MAX_RX_BUF + 16);
-		  printf("message: [%d] bytes, %s\r\n", strlen(message), message);
+//		  printf("message: [%d] bytes, %s\r\n", strlen(message), message);
 		  sprintf((char *)dma_buf, "UART4: %s\r\n", message);
-		  printf("dma_buf: %s\r\n", dma_buf);
+//		  printf("dma_buf: %s\r\n", dma_buf);
 		  sentbytes = strlen((const char*)dma_buf);
-		  HAL_UART_Transmit_DMA(&huart4, dma_buf, sentbytes);
-		  printf("UART4 HAL_UART_Transmit_DMA sent: %d bytes\r\n", sentbytes);
-		  totalSentBytes += sentbytes;
+//		  if(uart3TxEnable)
+//		  {
+//			  uart3TxEnable = 0;
+//			  HAL_UART_Transmit_DMA(&huart3, dma_buf, sentbytes);
+//			  printf("UART3 HAL_UART_Transmit_DMA sent: %d bytes\r\n", sentbytes);
+//			  totalSentBytes3 += sentbytes;
+//		  }
+//
+//		  if(uart4TxEnable)
+//		  {
+//			  uart4TxEnable = 0;
+//			  HAL_UART_Transmit_DMA(&huart4, dma_buf, sentbytes);
+//			  printf("UART4 HAL_UART_Transmit_DMA sent: %d bytes\r\n", sentbytes);
+//			  totalSentBytes4 += sentbytes;
+//		  }
 	  }
-	  loopback_tcps(0, ethBuf0, 5000);
-	  if(rcvFlag)
+	  U2E_tcps(0, 5000);
+	  U2E_tcps(1, 5001);
+
+	  if(rcvFlag3)
 	  {
-		  rcvFlag = 0;
-		  UART_Data_Process(&huart3);
-		  totalRcvdBytes += rcvdLen;
-		  printf("RxBuf3: [%d] bytes, %s\r\n", strlen(RxBuf3), RxBuf3);
-		  printf("_HT_Count: %d, _TC_Count: %d, _IDLE_Count: %d, rdPtr: %d, wrPtr: %d, rcvdLen: %d, totalSentBytes: %d, totalRcvdBytes: %d\r\n",
-				  _HT_Count, _TC_Count, _IDLE_Count, rdPtr, wrPtr, rcvdLen, totalSentBytes, totalRcvdBytes);
+		  rcvFlag3 = 0;
+		  UART_Data_Process3(&huart3);
+		  totalRcvdBytes3 += rcvdLen3;
+		  memset(ethBuf3, 0, DATA_BUF_SIZE);
+		  memcpy(ethBuf3, RxBuf3, rcvdLen3);
+		  ethDataLen3 = rcvdLen3;
+
+		  printf("_HT_Count3: %d, _TC_Count3: %d, _IDLE_Count3: %d, rdPtr3: %d, wrPtr3: %d, rcvdLen3: %d, totalSentBytes3: %d, totalRcvdBytes3: %d\r\n",
+				  _HT_Count3, _TC_Count3, _IDLE_Count3, rdPtr3, wrPtr3, rcvdLen3, totalSentBytes3, totalRcvdBytes3);
+	  }
+	  if(rcvFlag4)
+	  {
+		  rcvFlag4 = 0;
+		  UART_Data_Process4(&huart4);
+		  totalRcvdBytes4 += rcvdLen4;
+		  memset(ethBuf4, 0, DATA_BUF_SIZE);
+		  memcpy(ethBuf4, RxBuf4, rcvdLen4);
+		  ethDataLen4 = rcvdLen4;
+
+		  printf("_HT_Count4: %d, _TC_Count4: %d, _IDLE_Count4: %d, rdPtr4: %d, wrPtr4: %d, rcvdLen4: %d, totalSentBytes4: %d, totalRcvdBytes4: %d\r\n",
+				  _HT_Count4, _TC_Count4, _IDLE_Count4, rdPtr4, wrPtr4, rcvdLen4, totalSentBytes4, totalRcvdBytes4);
+	  }
+
+	  if(HAL_UART_GetState(&huart5) == HAL_UART_STATE_READY)
+	  {
+		  if(debugPtr > 0)
+		  {
+			  uart5TxLen = debugPtr;
+			  memcpy(uart5TxBuf, debugBuf, debugPtr);
+			  debugPtr = 0;
+			  HAL_UART_Transmit_IT(&huart5, uart5TxBuf, uart5TxLen);
+		  }
 	  }
   }
   /* USER CODE END 3 */
@@ -704,51 +781,107 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-void UART_Data_Process(UART_HandleTypeDef *huart)
+void UART_Data_Process3(UART_HandleTypeDef *huart)
 {
 
-	wrPtr = ARRAY_LEN(RxBuffer) - huart->hdmarx->Instance->CNDTR;
-	if(wrPtr != rdPtr)
+	wrPtr3 = ARRAY_LEN(RxBuffer3) - huart->hdmarx->Instance->CNDTR;
+	if(wrPtr3 != rdPtr3)
 	{
 		memset(RxBuf3, 0, MAX_RX_BUF + 16);
 
-		if (wrPtr > rdPtr)
+		if (wrPtr3 > rdPtr3)
 		{
-			rcvdLen = wrPtr - rdPtr;
-			memcpy(RxBuf3, RxBuffer + rdPtr, rcvdLen);
+			rcvdLen3 = wrPtr3 - rdPtr3;
+			memcpy(RxBuf3, RxBuffer3 + rdPtr3, rcvdLen3);
 		}else
 		{
-			rcvdLen = ARRAY_LEN(RxBuffer) - rdPtr;
-			memcpy(RxBuf3, RxBuffer + rdPtr, rcvdLen);
-			if(wrPtr > 0)
+			rcvdLen3 = ARRAY_LEN(RxBuffer3) - rdPtr3;
+			memcpy(RxBuf3, RxBuffer3 + rdPtr3, rcvdLen3);
+			if(wrPtr3 > 0)
 			{
-				rcvdLen += wrPtr;
-				memcpy(RxBuf3 + rcvdLen, RxBuffer, wrPtr);
+				rcvdLen3 += wrPtr3;
+				memcpy(RxBuf3 + rcvdLen3, RxBuffer3, wrPtr3);
 			}
 		}
-		rdPtr = wrPtr;
+		rdPtr3 = wrPtr3;
+	}
+}
+
+void UART_Data_Process4(UART_HandleTypeDef *huart)
+{
+
+	wrPtr4 = ARRAY_LEN(RxBuffer4) - huart->hdmarx->Instance->CNDTR;
+	if(wrPtr4 != rdPtr4)
+	{
+		memset(RxBuf4, 0, MAX_RX_BUF + 16);
+
+		if (wrPtr4 > rdPtr4)
+		{
+			rcvdLen4 = wrPtr4 - rdPtr4;
+			memcpy(RxBuf4, RxBuffer4 + rdPtr4, rcvdLen4);
+		}else
+		{
+			rcvdLen4 = ARRAY_LEN(RxBuffer4) - rdPtr4;
+			memcpy(RxBuf4, RxBuffer4 + rdPtr4, rcvdLen4);
+			if(wrPtr4 > 0)
+			{
+				rcvdLen4 += wrPtr4;
+				memcpy(RxBuf4 + rcvdLen4, RxBuffer4, wrPtr4);
+			}
+		}
+		rdPtr4 = wrPtr4;
 	}
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	_TC_Count++;
-	rcvFlag = 1;
+	if(huart->Instance == huart3.Instance)
+	{
+		_TC_Count3++;
+		rcvFlag3 = 1;
+	}else if(huart->Instance == huart4.Instance)
+	{
+		_TC_Count4++;
+		rcvFlag4 = 1;
+	}
 }
 
 void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart)
 {
-	_HT_Count++;
-	rcvFlag = 1;
+	if(huart->Instance == huart3.Instance)
+	{
+		_HT_Count3++;
+		rcvFlag3 = 1;
+	}else if(huart->Instance == huart4.Instance)
+	{
+		_HT_Count4++;
+		rcvFlag4 = 1;
+	}
 }
 
 
-void UART_IDLECallback(UART_HandleTypeDef *huart)
+void UART_IDLECallback3(UART_HandleTypeDef *huart)
 {
-	_IDLE_Count++;
-	rcvFlag = 1;
+	_IDLE_Count3++;
+	rcvFlag3 = 1;
 }
 
+void UART_IDLECallback4(UART_HandleTypeDef *huart)
+{
+	_IDLE_Count4++;
+	rcvFlag4 = 1;
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if(huart->Instance == huart3.Instance)
+	{
+		uart3TxEnable = 1;
+	}else if(huart->Instance == huart4.Instance)
+	{
+		uart4TxEnable = 1;
+	}
+}
 void print_network_information(void)
 {
 
@@ -758,6 +891,98 @@ void print_network_information(void)
     printf("SM Mask    : %d.%d.%d.%d\n\r",gWIZNETINFO.sn[0],gWIZNETINFO.sn[1],gWIZNETINFO.sn[2],gWIZNETINFO.sn[3]);
     printf("Gate way   : %d.%d.%d.%d\n\r",gWIZNETINFO.gw[0],gWIZNETINFO.gw[1],gWIZNETINFO.gw[2],gWIZNETINFO.gw[3]);
     printf("DNS Server : %d.%d.%d.%d\n\r",gWIZNETINFO.dns[0],gWIZNETINFO.dns[1],gWIZNETINFO.dns[2],gWIZNETINFO.dns[3]);
+}
+
+int32_t U2E_tcps(uint8_t sn, uint16_t port)
+{
+   int32_t ret;
+   uint16_t size = 0, sentsize=0;
+
+#ifdef _LOOPBACK_DEBUG_
+   uint8_t destip[4];
+   uint16_t destport;
+#endif
+
+   switch(getSn_SR(sn))
+   {
+      case SOCK_ESTABLISHED :
+         if(getSn_IR(sn) & Sn_IR_CON)
+         {
+#ifdef _LOOPBACK_DEBUG_
+			getSn_DIPR(sn, destip);
+			destport = getSn_DPORT(sn);
+
+			printf("%d:Connected - %d.%d.%d.%d : %d\r\n",sn, destip[0], destip[1], destip[2], destip[3], destport);
+#endif
+			setSn_IR(sn,Sn_IR_CON);
+         }
+		 if((size = getSn_RX_RSR(sn)) > 0) // Don't need to check SOCKERR_BUSY because it doesn't not occur.
+         {
+			if(size > DATA_BUF_SIZE) size = DATA_BUF_SIZE;
+			ret = recv(sn, dma_buf, size);
+
+			if(ret <= 0) return ret;      // check SOCKERR_BUSY & SOCKERR_XXX. For showing the occurrence of SOCKERR_BUSY.
+			size = (uint16_t) ret;
+			sentsize = 0;
+
+			if(sn==0)
+			{
+			  if(uart3TxEnable)
+			  {
+				  uart3TxEnable = 0;
+				  HAL_UART_Transmit_DMA(&huart3, dma_buf, size);
+				  printf("UART3 HAL_UART_Transmit_DMA sent: %d bytes\r\n", sentbytes);
+				  totalSentBytes3 += sentbytes;
+			  }
+			}else if(sn == 1)
+			{
+			  if(uart4TxEnable)
+			  {
+				  uart4TxEnable = 0;
+				  HAL_UART_Transmit_DMA(&huart4, dma_buf, size);
+				  printf("UART4 HAL_UART_Transmit_DMA sent: %d bytes\r\n", sentbytes);
+				  totalSentBytes4 += sentbytes;
+			  }
+			}
+         }
+		 if((sn==0) && (ethDataLen3 > 0))
+		 {
+			 send(sn, ethBuf3, ethDataLen3);
+			 ethDataLen3 = 0;
+		 }else if((sn==1) && (ethDataLen4 > 0))
+		 {
+			 send(sn, ethBuf4, ethDataLen4);
+			 ethDataLen4 = 0;
+		 }
+         break;
+      case SOCK_CLOSE_WAIT :
+#ifdef _LOOPBACK_DEBUG_
+         //printf("%d:CloseWait\r\n",sn);
+#endif
+         if((ret = disconnect(sn)) != SOCK_OK) return ret;
+#ifdef _LOOPBACK_DEBUG_
+         printf("%d:Socket Closed\r\n", sn);
+#endif
+         break;
+      case SOCK_INIT :
+#ifdef _LOOPBACK_DEBUG_
+    	 printf("%d:Listen, TCP server loopback, port [%d]\r\n", sn, port);
+#endif
+         if( (ret = listen(sn)) != SOCK_OK) return ret;
+         break;
+      case SOCK_CLOSED:
+#ifdef _LOOPBACK_DEBUG_
+         //printf("%d:TCP server loopback start\r\n",sn);
+#endif
+         if((ret = socket(sn, Sn_MR_TCP, port, 0x00)) != sn) return ret;
+#ifdef _LOOPBACK_DEBUG_
+         //printf("%d:Socket opened\r\n",sn);
+#endif
+         break;
+      default:
+         break;
+   }
+   return 1;
 }
 
 /* USER CODE END 4 */
