@@ -27,8 +27,8 @@ Core/Src/W5300BasicFunctions.o: ../Core/Src/W5300BasicFunctions.c \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h \
  ../Core/Inc/W5300BasicFunctions.h \
- /home/javakys/STM32CubeIDE/workspace_1.4.0/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/wizchip_conf.h \
- /home/javakys/STM32CubeIDE/workspace_1.4.0/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/W5300/w5300.h
+ /home/jameskim/STM32CubeIDE/workspace_1.6.1/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/wizchip_conf.h \
+ /home/jameskim/STM32CubeIDE/workspace_1.6.1/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/W5300/w5300.h
 
 ../Core/Inc/main.h:
 
@@ -88,6 +88,6 @@ Core/Src/W5300BasicFunctions.o: ../Core/Src/W5300BasicFunctions.c \
 
 ../Core/Inc/W5300BasicFunctions.h:
 
-/home/javakys/STM32CubeIDE/workspace_1.4.0/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/wizchip_conf.h:
+/home/jameskim/STM32CubeIDE/workspace_1.6.1/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/wizchip_conf.h:
 
-/home/javakys/STM32CubeIDE/workspace_1.4.0/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/W5300/w5300.h:
+/home/jameskim/STM32CubeIDE/workspace_1.6.1/WIZ14xSR_Proj/ioLibrary_Driver/Ethernet/W5300/w5300.h:

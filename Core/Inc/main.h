@@ -56,6 +56,8 @@ void Error_Handler(void);
 /* USER CODE BEGIN EFP */
 void Reset_W5300(void);
 void print_network_information(void);
+void UART_IDLECallback(UART_HandleTypeDef *);
+void UART_Data_Process(UART_HandleTypeDef *);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

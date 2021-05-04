@@ -1,7 +1,7 @@
-snmp.c:63:6:currentUptime	32	static
+snmp.c:63:6:currentUptime	24	static
 snmp.c:72:6:SNMP_time_handler	4	static
 snmp.c:78:10:getSNMPTimeTick	4	static
-snmp.c:100:6:snmpd_init	32	static
+snmp.c:100:6:snmpd_init	24	static
 snmp.c:145:9:snmpd_run	40	static
 snmp.c:207:9:findEntry	24	static
 snmp.c:223:9:getOID	32	static
