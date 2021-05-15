@@ -314,6 +314,11 @@ void TIM2_IRQHandler(void)
 void USART1_IRQHandler(void)
 {
   /* USER CODE BEGIN USART1_IRQn 0 */
+  if(__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) != RESET)
+  {
+	  __HAL_UART_CLEAR_IDLEFLAG(&huart1);
+	  UART_IDLECallback(&huart1);
+  }
 
   /* USER CODE END USART1_IRQn 0 */
   HAL_UART_IRQHandler(&huart1);
@@ -328,6 +333,11 @@ void USART1_IRQHandler(void)
 void USART2_IRQHandler(void)
 {
   /* USER CODE BEGIN USART2_IRQn 0 */
+  if(__HAL_UART_GET_FLAG(&huart2, UART_FLAG_IDLE) != RESET)
+  {
+	  __HAL_UART_CLEAR_IDLEFLAG(&huart2);
+	  UART_IDLECallback(&huart2);
+  }
 
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
@@ -345,7 +355,7 @@ void USART3_IRQHandler(void)
   if(__HAL_UART_GET_FLAG(&huart3, UART_FLAG_IDLE) != RESET)
   {
 	  __HAL_UART_CLEAR_IDLEFLAG(&huart3);
-	  UART_IDLECallback3(&huart3);
+	  UART_IDLECallback(&huart3);
   }
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
@@ -363,7 +373,7 @@ void UART4_IRQHandler(void)
   if(__HAL_UART_GET_FLAG(&huart4, UART_FLAG_IDLE) != RESET)
   {
 	  __HAL_UART_CLEAR_IDLEFLAG(&huart4);
-	  UART_IDLECallback4(&huart4);
+	  UART_IDLECallback(&huart4);
   }
   /* USER CODE END UART4_IRQn 0 */
   HAL_UART_IRQHandler(&huart4);

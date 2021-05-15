@@ -38,6 +38,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define DATA_BUF_SIZE		2048
+#define DEBUG_BUF_SIZE		DATA_BUF_SIZE + 20
+#define PRINTF_BUF_SIZE		1024
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -74,9 +77,10 @@ wiz_NetInfo gWIZNETINFO = {
 		.dhcp = NETINFO_DHCP
 };
 
-uint8_t debugBuf[1024];
-uint16_t debugPtr = 0;
-uint8_t uart5TxBuf[1024];
+uint8_t debugBuf[DEBUG_BUF_SIZE];
+uint16_t debugWrite = 0;
+uint16_t debugRead = 0;
+uint8_t uart5TxBuf[DEBUG_BUF_SIZE];
 uint16_t uart5TxLen = 0;
 /* USER CODE END PV */
 
@@ -103,8 +107,12 @@ int _write(int file, char *ptr, int len)
 //		ITM_SendChar((*ptr++));
 //	HAL_UART_Transmit(&huart5, (uint8_t *)ptr, len, 10);
 //	HAL_UART_Transmit_IT(&huart5, (uint8_t *)ptr, len);
-	memcpy(debugBuf + debugPtr, ptr, len);
-	debugPtr += len;
+	for(int i=0; i<len; i++)
+	{
+		debugBuf[debugWrite++] = ptr[i];
+		if(debugWrite >= DEBUG_BUF_SIZE)
+			debugWrite = 0;
+	}
 
 	return len;
 }
@@ -112,6 +120,8 @@ int _write(int file, char *ptr, int len)
 uint8_t count = 0;
 uint16_t ms_count = 0;
 uint8_t onesecondElapsed = 0;
+uint8_t intervalElapsed = 0;
+
 uint8_t msg[200];
 uint16_t retval;
 
@@ -119,54 +129,46 @@ uint16_t retval;
 
 #define ARRAY_LEN(x)	(sizeof(x) / sizeof((x)[0]))
 
-uint8_t message[MAX_RX_BUF];
-uint8_t dma_buf[MAX_RX_BUF + 16];
-
-uint8_t RxBuffer3[MAX_RX_BUF + 16];
-uint16_t wrPtr3 = 0;
-uint16_t rdPtr3 = 0;
-uint16_t rcvdLen3 = 0;
-uint8_t rcvFlag3 = 0;
-uint8_t RxBuf3[MAX_RX_BUF + 16];
-
-uint8_t RxBuffer4[MAX_RX_BUF + 16];
-uint16_t wrPtr4 = 0;
-uint16_t rdPtr4 = 0;
-uint16_t rcvdLen4 = 0;
-uint8_t rcvFlag4 = 0;
-uint8_t RxBuf4[MAX_RX_BUF + 16];
-
-uint32_t totalSentBytes3 = 0;
-uint32_t totalRcvdBytes3 = 0;
-
-uint32_t totalSentBytes4 = 0;
-uint32_t totalRcvdBytes4 = 0;
 
 uint16_t sentbytes = 0;
 
-uint16_t _HT_Count3 = 0;
-uint16_t _TC_Count3 = 0;
-uint16_t _IDLE_Count3 = 0;
-
-uint16_t _HT_Count4 = 0;
-uint16_t _TC_Count4 = 0;
-uint16_t _IDLE_Count4 = 0;
 
 uint8_t W5300_memsize[2][8] = {{8,8,8,8,8,8,8,8}, {8,8,8,8,8,8,8,8}};
 //uint8_t W5300_memsize[2][8] = {{4,4,4,4,4,4,4,4}, {4,4,4,4,4,4,4,4}};
 
-#define DATA_BUF_SIZE		1024
 
-uint8_t ethBuf3[DATA_BUF_SIZE];
-uint8_t ethBuf4[DATA_BUF_SIZE];
+//DMA 처리를 위한 송수신 버퍼
+uint8_t DMATxBuf[4][DATA_BUF_SIZE] = {0,};
+uint8_t DMARxBuf[4][DATA_BUF_SIZE] = {0,};
+
+uint8_t RxBuf[4][DATA_BUF_SIZE] = {0,};
+
+//UART
+uint8_t UartTxEnable[4] = {1, 1, 1, 1};
+uint8_t UartRxEnable[4] = {0, 0, 0, 0};
+
+uint8_t DMATxStart[4] = {0, 0, 0, 0};
 
 uint16_t ethDataLen3 = 0;
 uint16_t ethDataLen4 = 0;
 
+uint16_t _TX_Count[4] = {0,};
+uint16_t _HT_Count[4] = {0,};
+uint16_t _TC_Count[4] = {0,};
+uint16_t _IDLE_Count[4] = {0,};
+
+uint32_t totalSentBytes[4] = {0,};
+uint32_t totalRcvdBytes[4] = {0,};
+
+uint16_t wrPtr[4] = {0,};
+uint16_t rdPtr[4] = {0,};
+uint16_t rcvdLen[4] = {0,};
+uint8_t rcvFlag[4] = {0,};
+
+uint8_t ch;
+
 #define BAUDRATE		2000000
 
-uint8_t uart3TxEnable = 1;
-uint8_t uart4TxEnable = 1;
 
 #define _LOOPBACK_DEBUG_
 /* USER CODE END 0 */
@@ -252,17 +254,18 @@ int main(void)
 //  memset(tmpbuf, 0, MAX_RX_BUF);
 //  HAL_UART_Receive_DMA(&huart1, &rxByte1, 1);
 //  HAL_UART_Receive_DMA(&huart2, &rxByte2, 1);
+
+//  __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);
+//  HAL_UART_Receive_DMA(&huart1, DMARxBuf[0], DATA_BUF_SIZE);
+
+  __HAL_UART_ENABLE_IT(&huart2, UART_IT_IDLE);
+  HAL_UART_Receive_DMA(&huart2, DMARxBuf[1], DATA_BUF_SIZE);
+
   __HAL_UART_ENABLE_IT(&huart3, UART_IT_IDLE);
-  HAL_UART_Receive_DMA(&huart3, RxBuffer3, MAX_RX_BUF + 16);
+  HAL_UART_Receive_DMA(&huart3, DMARxBuf[2], DATA_BUF_SIZE);
 
   __HAL_UART_ENABLE_IT(&huart4, UART_IT_IDLE);
-  HAL_UART_Receive_DMA(&huart4, RxBuffer4, MAX_RX_BUF + 16);
-
-  memset(message, 0, MAX_RX_BUF);
-  for(uint16_t i; i<MAX_RX_BUF - 1; i++)
-  {
-	message[i] = '0' + (i % 10);
-  }
+  HAL_UART_Receive_DMA(&huart4, DMARxBuf[3], DATA_BUF_SIZE);
 
 
   while (1)
@@ -275,63 +278,47 @@ int main(void)
 		  onesecondElapsed = 0;
 		  count++;	// increment count
 		  HAL_GPIO_TogglePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin);
-//		  printf("RxBuf3: [%d] bytes, %s\r\n", strlen(RxBuf3), RxBuf3);
-		  memset(dma_buf, 0, MAX_RX_BUF + 16);
-//		  printf("message: [%d] bytes, %s\r\n", strlen(message), message);
-		  sprintf((char *)dma_buf, "UART4: %s\r\n", message);
-//		  printf("dma_buf: %s\r\n", dma_buf);
-		  sentbytes = strlen((const char*)dma_buf);
-//		  if(uart3TxEnable)
-//		  {
-//			  uart3TxEnable = 0;
-//			  HAL_UART_Transmit_DMA(&huart3, dma_buf, sentbytes);
-//			  printf("UART3 HAL_UART_Transmit_DMA sent: %d bytes\r\n", sentbytes);
-//			  totalSentBytes3 += sentbytes;
-//		  }
-//
-//		  if(uart4TxEnable)
-//		  {
-//			  uart4TxEnable = 0;
-//			  HAL_UART_Transmit_DMA(&huart4, dma_buf, sentbytes);
-//			  printf("UART4 HAL_UART_Transmit_DMA sent: %d bytes\r\n", sentbytes);
-//			  totalSentBytes4 += sentbytes;
-//		  }
-	  }
-	  U2E_tcps(0, 5000);
-	  U2E_tcps(1, 5001);
 
-	  if(rcvFlag3)
+	  }
+
+	  if(intervalElapsed)
 	  {
-		  rcvFlag3 = 0;
-		  UART_Data_Process3(&huart3);
-		  totalRcvdBytes3 += rcvdLen3;
-		  memset(ethBuf3, 0, DATA_BUF_SIZE);
-		  memcpy(ethBuf3, RxBuf3, rcvdLen3);
-		  ethDataLen3 = rcvdLen3;
+		  intervalElapsed = 0;
 
-		  printf("_HT_Count3: %d, _TC_Count3: %d, _IDLE_Count3: %d, rdPtr3: %d, wrPtr3: %d, rcvdLen3: %d, totalSentBytes3: %d, totalRcvdBytes3: %d\r\n",
-				  _HT_Count3, _TC_Count3, _IDLE_Count3, rdPtr3, wrPtr3, rcvdLen3, totalSentBytes3, totalRcvdBytes3);
+		  for(ch=0; ch<4; ch++)
+		  {
+			  if(UartTxEnable[ch])
+				  DMATxStart[ch] = 1;
+//			  printf("CH[%d] UartTxEnable: %d, DMATxStart: %d\r\n",
+//					  ch, UartTxEnable[ch], DMATxStart[ch]);
+		  }
 	  }
-	  if(rcvFlag4)
-	  {
-		  rcvFlag4 = 0;
-		  UART_Data_Process4(&huart4);
-		  totalRcvdBytes4 += rcvdLen4;
-		  memset(ethBuf4, 0, DATA_BUF_SIZE);
-		  memcpy(ethBuf4, RxBuf4, rcvdLen4);
-		  ethDataLen4 = rcvdLen4;
 
-		  printf("_HT_Count4: %d, _TC_Count4: %d, _IDLE_Count4: %d, rdPtr4: %d, wrPtr4: %d, rcvdLen4: %d, totalSentBytes4: %d, totalRcvdBytes4: %d\r\n",
-				  _HT_Count4, _TC_Count4, _IDLE_Count4, rdPtr4, wrPtr4, rcvdLen4, totalSentBytes4, totalRcvdBytes4);
-	  }
+//	  DMALoopback(1);
+//	  DMALoopback(2);
+//	  DMALoopback(3);
+	  U2E_tcps(1, 5000);
+	  U2E_tcps(2, 5001);
+	  U2E_tcps(3, 5002);
+
 
 	  if(HAL_UART_GetState(&huart5) == HAL_UART_STATE_READY)
 	  {
-		  if(debugPtr > 0)
+		  if(debugWrite != debugRead)
 		  {
-			  uart5TxLen = debugPtr;
-			  memcpy(uart5TxBuf, debugBuf, debugPtr);
-			  debugPtr = 0;
+			  if(debugWrite > debugRead)
+			  {
+				  uart5TxLen = debugWrite - debugRead;
+				  memcpy(uart5TxBuf, debugBuf + debugRead, uart5TxLen);
+				  debugRead = debugWrite;
+			  }else
+			  {
+				  uart5TxLen = DEBUG_BUF_SIZE - debugRead;
+				  memcpy(uart5TxBuf, debugBuf + debugRead, uart5TxLen);
+				  memcpy(uart5TxBuf + uart5TxLen, debugBuf, debugWrite);
+				  uart5TxLen += debugWrite;
+				  debugRead = debugWrite;
+			  }
 			  HAL_UART_Transmit_IT(&huart5, uart5TxBuf, uart5TxLen);
 		  }
 	  }
@@ -772,116 +759,141 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		ms_count++;
 
+		if((ms_count % 10) == 0) intervalElapsed = 1;
+
 		if(ms_count >= 1000)
 		{
 			onesecondElapsed = 1;
 			ms_count = 0;
 		}
+
 		/* Toggle LEDs */
 	}
 }
 
-void UART_Data_Process3(UART_HandleTypeDef *huart)
+void UART_Data_Process(UART_HandleTypeDef *huart)
 {
+	uint8_t ch;
 
-	wrPtr3 = ARRAY_LEN(RxBuffer3) - huart->hdmarx->Instance->CNDTR;
-	if(wrPtr3 != rdPtr3)
+	if(huart->Instance == huart1.Instance)
 	{
-		memset(RxBuf3, 0, MAX_RX_BUF + 16);
+		ch = 0;
+		printf("CH%d selected in UART_DATA_Process\r\n", ch);
+	}
+	else if(huart->Instance == huart2.Instance)
+	{
+		ch = 1;
+		printf("CH%d selected in UART_DATA_Process\r\n", ch);	}
+	else if(huart->Instance == huart3.Instance)
+	{
+		ch = 2;
+		printf("CH%d selected in UART_DATA_Process\r\n", ch);	}
+	else if(huart->Instance == huart4.Instance)
+	{
+		ch = 3;
+		printf("CH%d selected in UART_DATA_Process\r\n", ch);	}
 
-		if (wrPtr3 > rdPtr3)
+//	printf("UART_Data_Process was called with %d\r\n", ch);
+
+	wrPtr[ch] = DATA_BUF_SIZE - huart->hdmarx->Instance->CNDTR;
+
+	rcvdLen[ch] = 0;
+
+	if(wrPtr[ch] != rdPtr[ch])
+	{
+		memset(RxBuf[ch], 0, DATA_BUF_SIZE);
+
+		if (wrPtr[ch] > rdPtr[ch])
 		{
-			rcvdLen3 = wrPtr3 - rdPtr3;
-			memcpy(RxBuf3, RxBuffer3 + rdPtr3, rcvdLen3);
+			rcvdLen[ch] = wrPtr[ch] - rdPtr[ch];
+			memcpy(RxBuf[ch], DMARxBuf[ch] + rdPtr[ch], rcvdLen[ch]);
 		}else
 		{
-			rcvdLen3 = ARRAY_LEN(RxBuffer3) - rdPtr3;
-			memcpy(RxBuf3, RxBuffer3 + rdPtr3, rcvdLen3);
-			if(wrPtr3 > 0)
+			rcvdLen[ch] = DATA_BUF_SIZE - rdPtr[ch];
+			memcpy(RxBuf[ch], DMARxBuf[ch] + rdPtr[ch], rcvdLen[ch]);
+			if(wrPtr[ch] > 0)
 			{
-				rcvdLen3 += wrPtr3;
-				memcpy(RxBuf3 + rcvdLen3, RxBuffer3, wrPtr3);
+				memcpy(RxBuf[ch] + rcvdLen[ch], DMARxBuf[ch], wrPtr[ch]);
+				rcvdLen[ch] += wrPtr[ch];
 			}
 		}
-		rdPtr3 = wrPtr3;
+		rdPtr[ch] = wrPtr[ch];
 	}
-}
 
-void UART_Data_Process4(UART_HandleTypeDef *huart)
-{
-
-	wrPtr4 = ARRAY_LEN(RxBuffer4) - huart->hdmarx->Instance->CNDTR;
-	if(wrPtr4 != rdPtr4)
-	{
-		memset(RxBuf4, 0, MAX_RX_BUF + 16);
-
-		if (wrPtr4 > rdPtr4)
-		{
-			rcvdLen4 = wrPtr4 - rdPtr4;
-			memcpy(RxBuf4, RxBuffer4 + rdPtr4, rcvdLen4);
-		}else
-		{
-			rcvdLen4 = ARRAY_LEN(RxBuffer4) - rdPtr4;
-			memcpy(RxBuf4, RxBuffer4 + rdPtr4, rcvdLen4);
-			if(wrPtr4 > 0)
-			{
-				rcvdLen4 += wrPtr4;
-				memcpy(RxBuf4 + rcvdLen4, RxBuffer4, wrPtr4);
-			}
-		}
-		rdPtr4 = wrPtr4;
-	}
+	totalRcvdBytes[ch] += rcvdLen[ch];
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if(huart->Instance == huart3.Instance)
-	{
-		_TC_Count3++;
-		rcvFlag3 = 1;
-	}else if(huart->Instance == huart4.Instance)
-	{
-		_TC_Count4++;
-		rcvFlag4 = 1;
-	}
+	uint8_t ch;
+
+	if(huart->Instance == huart1.Instance) ch = 0;
+	else if(huart->Instance == huart2.Instance) ch = 1;
+	else if(huart->Instance == huart3.Instance) ch = 2;
+	else if(huart->Instance == huart4.Instance) ch = 3;
+
+	_TC_Count[ch]++;
+
+//	printf("CH[%d] _TX_Count: %d, _HT_Count: %d, _TC_Count: %d, _IDLE_Count: %d, rdPtr: %d, wrPtr: %d, rcvdLen: %d, totalSentBytes: %d, totalRcvdBytes: %d\r\n",
+//		  ch, _TX_Count[ch], _HT_Count[ch], _TC_Count[ch], _IDLE_Count[ch], rdPtr[ch], wrPtr[ch], rcvdLen[ch], totalSentBytes[ch], totalRcvdBytes[ch]);
+
+//	UART_Data_Process(huart);
+
+	if(rcvFlag[ch] == 0) rcvFlag[ch] = 1;
 }
 
 void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart)
 {
-	if(huart->Instance == huart3.Instance)
-	{
-		_HT_Count3++;
-		rcvFlag3 = 1;
-	}else if(huart->Instance == huart4.Instance)
-	{
-		_HT_Count4++;
-		rcvFlag4 = 1;
-	}
+	uint8_t ch;
+
+	if(huart->Instance == huart1.Instance) ch = 0;
+	else if(huart->Instance == huart2.Instance) ch = 1;
+	else if(huart->Instance == huart3.Instance) ch = 2;
+	else if(huart->Instance == huart4.Instance) ch = 3;
+
+	_HT_Count[ch]++;
+
+//	printf("CH[%d] _TX_Count: %d, _HT_Count: %d, _TC_Count: %d, _IDLE_Count: %d, rdPtr: %d, wrPtr: %d, rcvdLen: %d, totalSentBytes: %d, totalRcvdBytes: %d\r\n",
+//		  ch, _TX_Count[ch], _HT_Count[ch], _TC_Count[ch], _IDLE_Count[ch], rdPtr[ch], wrPtr[ch], rcvdLen[ch], totalSentBytes[ch], totalRcvdBytes[ch]);
+
+//	UART_Data_Process(huart);
+
+	if(rcvFlag[ch] == 0) rcvFlag[ch] = 1;
 }
 
 
-void UART_IDLECallback3(UART_HandleTypeDef *huart)
+void UART_IDLECallback(UART_HandleTypeDef *huart)
 {
-	_IDLE_Count3++;
-	rcvFlag3 = 1;
-}
+	uint8_t ch;
 
-void UART_IDLECallback4(UART_HandleTypeDef *huart)
-{
-	_IDLE_Count4++;
-	rcvFlag4 = 1;
+	if(huart->Instance == huart1.Instance) ch = 0;
+	else if(huart->Instance == huart2.Instance) ch = 1;
+	else if(huart->Instance == huart3.Instance) ch = 2;
+	else if(huart->Instance == huart4.Instance) ch = 3;
+
+	_IDLE_Count[ch]++;
+
+//	printf("CH[%d] _TX_Count: %d, _HT_Count: %d, _TC_Count: %d, _IDLE_Count: %d, rdPtr: %d, wrPtr: %d, rcvdLen: %d, totalSentBytes: %d, totalRcvdBytes: %d\r\n",
+//		  ch, _TX_Count[ch], _HT_Count[ch], _TC_Count[ch], _IDLE_Count[ch], rdPtr[ch], wrPtr[ch], rcvdLen[ch], totalSentBytes[ch], totalRcvdBytes[ch]);
+
+//	UART_Data_Process(huart);
+
+	if(rcvFlag[ch] == 0) rcvFlag[ch] = 1;
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if(huart->Instance == huart3.Instance)
-	{
-		uart3TxEnable = 1;
-	}else if(huart->Instance == huart4.Instance)
-	{
-		uart4TxEnable = 1;
-	}
+	uint8_t ch;
+
+	if(huart->Instance == huart1.Instance) ch = 0;
+	else if(huart->Instance == huart2.Instance) ch = 1;
+	else if(huart->Instance == huart3.Instance) ch = 2;
+	else if(huart->Instance == huart4.Instance) ch = 3;
+
+	if(UartTxEnable[ch] == 0) UartTxEnable[ch] = 1;
+//	printf("UartTxEnable[%d] was changed to %d in HAL_UART_TxCpltCallback\r\n", index, UartTxEnable[index]);
 }
+
 void print_network_information(void)
 {
 
@@ -893,10 +905,68 @@ void print_network_information(void)
     printf("DNS Server : %d.%d.%d.%d\n\r",gWIZNETINFO.dns[0],gWIZNETINFO.dns[1],gWIZNETINFO.dns[2],gWIZNETINFO.dns[3]);
 }
 
+UART_HandleTypeDef * gethuart(uint8_t sn)
+{
+	printf("ch: %d in gethuart\r\n", sn);
+	if(sn == 0)
+		return &huart1;
+	else if(sn == 1)
+		return &huart2;
+	else if(sn == 2)
+		return &huart3;
+	else if(sn == 3)
+		return &huart4;
+}
+
+void DMALoopback(uint8_t ch)
+{
+	UART_HandleTypeDef *huart;
+	uint16_t i;
+
+	// DMA Tx Start Flag가 set 되어 있으면 HAL_UART_Transmit_DMA를 수행한다.
+	if(DMATxStart[ch])
+	{
+		for(i=0; i<DATA_BUF_SIZE; i++) DMATxBuf[ch][i] = '0' + (i % 10);
+
+		HAL_UART_Transmit_DMA(gethuart(ch), DMATxBuf[ch], DATA_BUF_SIZE);
+		printf("================\r\n");
+		printf("UART%d HAL_UART_Transmit_DMA sent: %d bytes\r\n", (ch + 1), DATA_BUF_SIZE);
+		_TX_Count[ch] += 1;
+		totalSentBytes[ch] += DATA_BUF_SIZE;
+		UartTxEnable[ch] = 0;
+		DMATxStart[ch] = 0;
+	}
+
+	// DMA Rx Data가 있으면 User Buffer로 복사한다.
+	if(rcvFlag[ch])
+	{
+//		huart = gethuart(ch);
+		printf("ch[%d] rcvFlag: %d, %d, %d, %d\r\n", ch, rcvFlag[0], rcvFlag[1], rcvFlag[2], rcvFlag[3]);
+		rcvFlag[ch] = 0;
+		printf("ch[%d] rcvFlag: %d, %d, %d, %d\r\n", ch, rcvFlag[0], rcvFlag[1], rcvFlag[2], rcvFlag[3]);
+
+		UART_Data_Process(gethuart(ch));
+		printf("RxBuf[%d]:", ch);
+		for(i=0; i<rcvdLen[ch]; i++)
+		{
+		  if((i % 100) == 0) printf("\r\n\t");
+		  printf("%c", RxBuf[ch][i]);
+		}
+		printf("\r\n");
+		printf("CH[%d] _TX_Count: %d, _HT_Count: %d, _TC_Count: %d, _IDLE_Count: %d, rdPtr: %d, wrPtr: %d, rcvdLen: %d, totalSentBytes: %d, totalRcvdBytes: %d\r\n",
+			  ch, _TX_Count[ch], _HT_Count[ch], _TC_Count[ch], _IDLE_Count[ch], rdPtr[ch], wrPtr[ch], rcvdLen[ch], totalSentBytes[ch], totalRcvdBytes[ch]);
+	}
+}
+
 int32_t U2E_tcps(uint8_t sn, uint16_t port)
 {
+//	UART_HandleTypeDef *huart;
+//	huart = gethuart(sn);
    int32_t ret;
    uint16_t size = 0, sentsize=0;
+   uint16_t i;
+
+   uint8_t buf[DATA_BUF_SIZE] = {0,};
 
 #ifdef _LOOPBACK_DEBUG_
    uint8_t destip[4];
@@ -916,44 +986,47 @@ int32_t U2E_tcps(uint8_t sn, uint16_t port)
 #endif
 			setSn_IR(sn,Sn_IR_CON);
          }
-		 if((size = getSn_RX_RSR(sn)) > 0) // Don't need to check SOCKERR_BUSY because it doesn't not occur.
-         {
-			if(size > DATA_BUF_SIZE) size = DATA_BUF_SIZE;
-			ret = recv(sn, dma_buf, size);
 
-			if(ret <= 0) return ret;      // check SOCKERR_BUSY & SOCKERR_XXX. For showing the occurrence of SOCKERR_BUSY.
-			size = (uint16_t) ret;
-			sentsize = 0;
+//		if(DMATxStart[sn])
+		if(UartTxEnable[sn])
+     	{
+//			printf("data to read arrived\r\n");
+			if((size = getSn_RX_RSR(sn)) > 0) // Don't need to check SOCKERR_BUSY because it doesn't occur.
+			{
+				if(size > DATA_BUF_SIZE) size = DATA_BUF_SIZE;
+				ret = recv(sn, DMATxBuf[sn], size);
+				printf("rcvd bytes: %d\r\n", ret);
+//				printf("\r\nrcvd data: \r\n%s\r\n\r\n", DMATxBuf[sn]);
 
-			if(sn==0)
-			{
-			  if(uart3TxEnable)
-			  {
-				  uart3TxEnable = 0;
-				  HAL_UART_Transmit_DMA(&huart3, dma_buf, size);
-				  printf("UART3 HAL_UART_Transmit_DMA sent: %d bytes\r\n", sentbytes);
-				  totalSentBytes3 += sentbytes;
-			  }
-			}else if(sn == 1)
-			{
-			  if(uart4TxEnable)
-			  {
-				  uart4TxEnable = 0;
-				  HAL_UART_Transmit_DMA(&huart4, dma_buf, size);
-				  printf("UART4 HAL_UART_Transmit_DMA sent: %d bytes\r\n", sentbytes);
-				  totalSentBytes4 += sentbytes;
-			  }
+				HAL_UART_Transmit_DMA(gethuart(sn), DMATxBuf[sn], ret);
+				UartTxEnable[sn] = 0;
+//				DMATxStart[sn] = 0;
+				_TX_Count[sn] += 1;
+				totalSentBytes[sn] += ret;
+				printf("================\r\n");
+				printf("UART%d HAL_UART_Transmit_DMA sent: %d bytes\r\n", (sn + 1), ret);
 			}
-         }
-		 if((sn==0) && (ethDataLen3 > 0))
-		 {
-			 send(sn, ethBuf3, ethDataLen3);
-			 ethDataLen3 = 0;
-		 }else if((sn==1) && (ethDataLen4 > 0))
-		 {
-			 send(sn, ethBuf4, ethDataLen4);
-			 ethDataLen4 = 0;
-		 }
+     	}
+
+		// DMA Rx Data가 있으면 User Buffer로 복사한다.
+		if(rcvFlag[sn])
+		{
+	//		huart = gethuart(ch);
+			printf("ch[%d] rcvFlag: %d, %d, %d, %d\r\n", sn, rcvFlag[0], rcvFlag[1], rcvFlag[2], rcvFlag[3]);
+			rcvFlag[sn] = 0;
+			printf("ch[%d] rcvFlag: %d, %d, %d, %d\r\n", sn, rcvFlag[0], rcvFlag[1], rcvFlag[2], rcvFlag[3]);
+
+			UART_Data_Process(gethuart(sn));
+			if(rcvdLen[sn] > 0)
+			{
+//				printf("\r\nRxBuf[%d] rcvdLen: %d \r\n%s\r\n", sn, rcvdLen[sn], RxBuf[sn]);
+				ret = send(sn, RxBuf[sn], rcvdLen[sn]);
+				printf("sent bytes: %d\r\n", ret);
+			}
+			printf("CH[%d] _TX_Count: %d, _HT_Count: %d, _TC_Count: %d, _IDLE_Count: %d, rdPtr: %d, wrPtr: %d, rcvdLen: %d, totalSentBytes: %d, totalRcvdBytes: %d\r\n",
+					sn, _TX_Count[sn], _HT_Count[sn], _TC_Count[sn], _IDLE_Count[sn], rdPtr[sn], wrPtr[sn], rcvdLen[sn], totalSentBytes[sn], totalRcvdBytes[sn]);
+		}
+
          break;
       case SOCK_CLOSE_WAIT :
 #ifdef _LOOPBACK_DEBUG_
